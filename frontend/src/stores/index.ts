@@ -1,5 +1,6 @@
 // Pinia store 入口文件
 export { useAppStore } from './app'
+export { useCallStore } from './call'
 export { useContactsStore } from './contacts'
 export { useHomeStore } from './home'
 export { useRecipientTransferStore } from './recipientTransfer'

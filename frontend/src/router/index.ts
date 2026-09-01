@@ -25,6 +25,11 @@ export const router = createRouter({
       name: 'tasks',
       component: () => import('@/views/TasksView.vue')
     },
+    {
+      path: '/call',
+      name: 'call',
+      component: () => import('@/views/CallView.vue')
+    },
     // 兜底:未匹配跳首页
     {
       path: '/:pathMatch(.*)*',

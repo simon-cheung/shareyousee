@@ -186,6 +186,25 @@ export default {
         pushDelivered: 'A recipient accepted the push',
         pushExpired: 'Push expired',
         targetSelected: 'Target selected — next send will be pushed'
+      },
+      call: {
+        title: 'Call / Share screen',
+        chooseMode: 'Choose mode',
+        chooseModeHint: 'Pick audio call or screen share. The other side will be notified.',
+        audio: 'Audio',
+        screen: 'Screen',
+        local: 'You',
+        remote: 'Remote',
+        end: 'End',
+        waitingPeer: 'Waiting for the other side…',
+        callEnded: 'Call ended',
+        callError: 'Call failed',
+        needTarget: 'Select a contact or group first',
+        mute: 'Mute',
+        unmute: 'Unmute',
+        camera: 'Camera',
+        stopShare: 'Stop sharing',
+        audioInProgress: 'Audio in progress'
       }
     },
     zh: {
@@ -364,7 +383,26 @@ export default {
         pushRejected: '所有目标均已拒接',
         pushDelivered: '目标已开始接收',
         pushExpired: '推送已过期',
-        targetSelected: '已选择定向目标,下次发送将自动定向'
+        targetSelected: '已选中目标 — 下次发送将定向推送'
+      },
+      call: {
+        title: '通话 / 共享屏幕',
+        chooseMode: '选择模式',
+        chooseModeHint: '选择语音通话或屏幕共享。对方会收到通知。',
+        audio: '语音',
+        screen: '屏幕',
+        local: '本地',
+        remote: '远端',
+        end: '结束',
+        waitingPeer: '等待对方…',
+        callEnded: '通话已结束',
+        callError: '通话失败',
+        needTarget: '请先选择联系人或群组',
+        mute: '静音',
+        unmute: '取消静音',
+        camera: '摄像头',
+        stopShare: '停止共享',
+        audioInProgress: '语音通话中'
       }
     }
   }

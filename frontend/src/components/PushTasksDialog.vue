@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useRemoteTaskStore, useContactsStore } from '@/stores'
+import type { RemoteTask } from '@/stores/remoteTask'
 import { getDeviceIcon } from '@/utils/device'
 import { getContactDisplay } from '@/utils/contactsDisplay'
 import { useLocalePath } from '@/utils/localePath'
@@ -26,9 +27,14 @@ const localVisible = computed({
   set: (v) => emit('update:visible', v)
 })
 
-function accept(code: string) {
-  remoteTaskStore.markLocalConsumed(code)
-  router.push(localePath('/recipient') + '?code=' + code)
+function accept(task: RemoteTask) {
+  remoteTaskStore.markLocalConsumed(task.code)
+  // 通话/共享屏幕走 /call,文件传输走 /recipient(原有取件码配对)
+  if (task.kind === 'call') {
+    router.push(localePath('/call') + '?code=' + task.code)
+  } else {
+    router.push(localePath('/recipient') + '?code=' + task.code)
+  }
   localVisible.value = false
 }
 
@@ -78,18 +84,26 @@ function fmtTime(ts: number) {
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2 min-w-0">
             <Icon :name="getDeviceIcon(task.fromDevice)" />
+            <Icon
+              v-if="task.kind === 'call'"
+              name="solar:user-hand-up-broken"
+              class="text-sky-500"
+            />
             <span class="text-sm truncate">{{
               peerLabel(task.fromWalletId, task.fromDevice)
             }}</span>
           </div>
           <span class="text-xs text-neutral-500">{{ fmtTime(task.createdAt) }}</span>
         </div>
-        <div class="text-xs text-neutral-500 mt-1 truncate">
+        <div v-if="task.kind === 'call'" class="text-xs text-neutral-500 mt-1 truncate">
+          {{ t('call.title') }}
+        </div>
+        <div v-else class="text-xs text-neutral-500 mt-1 truncate">
           {{ task.filesSnapshot.root || task.filesSnapshot.type }} ·
           {{ task.filesSnapshot.totalCount }} {{ $t('btn.viewFiles') }}
         </div>
         <div class="flex gap-2 mt-1">
-          <Button size="small" severity="contrast" @click="accept(task.code)">
+          <Button size="small" severity="contrast" @click="accept(task)">
             {{ t('btn.receive') }}
           </Button>
         </div>

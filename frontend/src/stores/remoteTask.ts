@@ -9,6 +9,7 @@ import type { TaskFilesSnapshot } from '@/types/task'
  */
 export interface RemoteTask {
   code: string
+  kind: 'file' | 'call'
   fromWalletId: string
   fromPublicKey: string
   fromDevice: DeviceLabel

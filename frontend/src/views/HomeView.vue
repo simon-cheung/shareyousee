@@ -2,7 +2,9 @@
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { ref, computed, watch, onMounted } from 'vue'
-import { useHomeStore, useContactsStore, useTaskStore } from '@/stores'
+import { useRouter } from 'vue-router'
+import { useToast } from 'primevue/usetoast'
+import { useHomeStore, useContactsStore, useTaskStore, useUserStore } from '@/stores'
 import { useSeoMeta } from '@/utils/seoMeta'
 import ContactsAndRecentPanel from '@/components/ContactsAndRecentPanel.vue'
 // 首页布局(ShareYouSee):
@@ -10,9 +12,12 @@ import ContactsAndRecentPanel from '@/components/ContactsAndRecentPanel.vue'
 // - 主区:左 2/3(发送三按钮 + 联系人列表),右 1/4 留空
 // - 选中列表项后,三按钮自动转为定向发送,直接进入 sender
 const { t } = useI18n()
+const router = useRouter()
+const toastForCall = useToast()
 const homeStore = useHomeStore()
 const contactsStore = useContactsStore()
 const taskStore = useTaskStore()
+const userStore = useUserStore()
 const { isModernFileAPISupport, isDirSupport, receiveCode, isFileDraging } = storeToRefs(homeStore)
 const fileDragArea = ref()
 
@@ -105,6 +110,35 @@ const sendMenuItems = computed(() => [
     command: () => startSyncDir()
   }
 ])
+
+// 通话 / 屏幕共享入口:mode='audio' 语音通话,mode='screen' 屏幕共享
+// 分离成两个独立按钮,各自携带自己的模式,不再共用弹窗选择。
+async function startCall(mode: 'audio' | 'screen') {
+  if (!homeStore.pushTargetId) {
+    toastForCall.add({
+      severity: 'warn',
+      summary: 'Warn',
+      detail: t('call.needTarget'),
+      life: 5e3
+    })
+    return
+  }
+  const id = homeStore.pushTargetId
+  const targets = homeStore.pushTargetIsGroup
+    ? contactsStore.resolveGroupMembers(id).map((walletId) => ({ walletId, deviceLabel: undefined }))
+    : [{ walletId: id, deviceLabel: undefined }]
+  sessionStorage.setItem(
+    'sy-call-pending',
+    JSON.stringify({
+      mode,
+      targets,
+      fromWalletId: userStore.walletInfo?.walletId || '',
+      fromPublicKey: userStore.walletInfo?.publicKey || '',
+      fromDevice: userStore.walletInfo?.deviceLabel || 'unknown'
+    })
+  )
+  await router.push('/call')
+}
 </script>
 
 <template>
@@ -153,13 +187,13 @@ const sendMenuItems = computed(() => [
           <p class="mt-4">{{ $t('label.dragHereToSendFile') }}</p>
         </div>
 
-        <!-- 缺省发送文件,下拉菜单展开"发目录/同步目录" -->
-        <div class="mb-3">
+        <!-- 三个入口同一行:发送文件(带下拉) / 语音 / 屏幕共享 -->
+        <div class="grid grid-cols-3 gap-2 mb-3">
           <SplitButton
             severity="contrast"
             outlined
             rounded
-            class="w-full py-2"
+            class="py-2"
             :label="$t('btn.sendFile')"
             :title="$t('btn.sendFile')"
             :aria-label="$t('btn.sendFile')"
@@ -170,6 +204,32 @@ const sendMenuItems = computed(() => [
               <Icon name="solar:file-line-duotone" size="20" />
             </template>
           </SplitButton>
+
+          <Button
+            severity="contrast"
+            rounded
+            outlined
+            class="py-2"
+            :disabled="!homeStore.pushTargetId"
+            :title="$t('call.audio')"
+            :aria-label="$t('call.audio')"
+            @click="startCall('audio')"
+          >
+            <Icon name="solar:user-hand-up-broken" size="20" />
+          </Button>
+
+          <Button
+            severity="contrast"
+            rounded
+            outlined
+            class="py-2"
+            :disabled="!homeStore.pushTargetId"
+            :title="$t('call.screen')"
+            :aria-label="$t('call.screen')"
+            @click="startCall('screen')"
+          >
+            <Icon name="solar:link-round-angle-bold" size="20" />
+          </Button>
         </div>
 
         <!-- 已选提示 -->

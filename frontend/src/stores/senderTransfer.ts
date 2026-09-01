@@ -415,6 +415,7 @@ export const useSenderTransferStore = defineStore('senderTransfer', () => {
           ws?.send(
             JSON.stringify({
               type: 'pendingPush',
+              kind: 'file',
               code: code.value,
               targets: pendingPushMeta.targets,
               filesSnapshot: pendingPushMeta.filesSnapshot,

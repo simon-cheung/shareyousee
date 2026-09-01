@@ -91,6 +91,9 @@ function disposePeer(peer: any) {
   for (const [code, value] of waitConnectPool.entries()) {
     if (value === peer) waitConnectPool.delete(code)
   }
+  // ShareYouSee 行政特征:发送端 ws 断开时,清理它创建但尚未完成的定向推送,
+  // 否则 pendingPushes 里的 push 会在接收端列表残留,点击时 code 已不存在 → 404 幽灵任务。
+  cleanupPushBySender(peer)
   unregisterPeer(peer)
   try {
     peer.close()
@@ -99,6 +102,19 @@ function disposePeer(peer: any) {
   }
   if (peer.pairPeer && peer.pairPeer.readyState === 1) {
     disposePeer(peer.pairPeer)
+  }
+}
+
+// 清理某个发送端创建但尚未完成的 push(按 senderWalletId 匹配)。
+// 发送端离线后这些 push 的 code 已失效(不再在 waitConnectPool),
+// 必须一并清除,避免接收端列表里出现永远无法配对的"幽灵任务"。
+function cleanupPushBySender(peer: any) {
+  const walletId = walletIdOfPeer(peer)
+  if (!walletId) return
+  for (const [code, push] of pendingPushes.entries()) {
+    if (push.senderWalletId === walletId) {
+      pendingPushes.delete(code)
+    }
   }
 }
 
@@ -160,6 +176,18 @@ function initReceive(peer: any, code: string) {
   initedPool.set(targetPeer.id, targetPeer)
   // 配对成功
   peer.send(JSON.stringify({ type: 'status', code: 0 }))
+  // 通话/文件传输:发送端可能在接收端配对前就发 offer/candidate(通话里发送端先 offer),
+  // 此时缓存起来,配对后立即补发给接收端。
+  if (targetPeer._pendingSDP) {
+    peer.send(JSON.stringify({ type: 'sdp', data: targetPeer._pendingSDP }))
+    targetPeer._pendingSDP = null
+  }
+  if (targetPeer._pendingCandidates && targetPeer._pendingCandidates.length) {
+    for (const c of targetPeer._pendingCandidates) {
+      peer.send(JSON.stringify({ type: 'candidate', data: c }))
+    }
+    targetPeer._pendingCandidates = []
+  }
   heartbeat(peer)
   increaseTransCount()
 }
@@ -173,6 +201,9 @@ export function handleMessage(peer: any, raw: string | Buffer) {
       initSend(peer)
     } else if (data.type === 'receive') {
       const code = String(data.code || '')
+      console.log(
+        `${new Date().toISOString()} receive #${peer.id} code=${code} inWaitPool=${waitConnectPool.has(code)} wallet=${walletIdOfPeer(peer) || '(none)'}`
+      )
       if (/^\d{4}$/.test(code)) {
         initReceive(peer, code)
       } else {
@@ -180,6 +211,9 @@ export function handleMessage(peer: any, raw: string | Buffer) {
         disposePeer(peer)
       }
     } else if (data.type === 'register') {
+      console.log(
+        `${new Date().toISOString()} register #${peer.id} wallet=${data.walletId} device=${data.deviceLabel}`
+      )
       registerPeer(
         peer,
         String(data.walletId || ''),
@@ -188,6 +222,9 @@ export function handleMessage(peer: any, raw: string | Buffer) {
       )
     } else if (data.type === 'pendingPush') {
       const code = String(data.code || '')
+      console.log(
+        `${new Date().toISOString()} pendingPush #${peer.id} code=${code} targets=${Array.isArray(data.targets) ? data.targets.length : 0} sender=${data.senderWalletId}`
+      )
       if (!/^\d{4}$/.test(code)) return
       const rawTargets = Array.isArray(data.targets) ? data.targets : []
       const targets: TargetEndpoint[] = rawTargets
@@ -204,8 +241,10 @@ export function handleMessage(peer: any, raw: string | Buffer) {
         items: []
       }
       const ttl = Math.min(Math.max(Number(data.ttlSec) || 600, 60), 3600)
+      const kind = data.kind === 'call' ? 'call' : 'file'
       createPush(
         code,
+        kind,
         String(data.senderWalletId || ''),
         String(data.senderPublicKey || ''),
         (data.senderDevice || 'unknown') as DeviceLabel,
@@ -228,6 +267,22 @@ export function handleMessage(peer: any, raw: string | Buffer) {
       }
     } else if (data.type === 'ping') {
       // 心跳 echo:忽略,不 dispose(客户端 usePresenceWs 每 25s ping 一次保活)
+    } else if (data.type === 'sdp' || data.type === 'candidate') {
+      // 已配对:直接转发给对端
+      if (peer.pairPeer) {
+        peer.pairPeer.send(typeof raw === 'string' ? raw : raw.toString('utf8'))
+        return
+      }
+      // 未配对(通话里发送端先发 offer):缓存,待接收端配对后补发。
+      // 绝不能 dispose —— 否则发送端 ws 被关,接收端收不到通知。
+      console.log(
+        `${new Date().toISOString()} cache ${data.type} #${peer.id} (unpaired, waiting for receive)`
+      )
+      if (data.type === 'sdp') {
+        peer._pendingSDP = data.data
+      } else {
+        ;(peer._pendingCandidates ||= []).push(data.data)
+      }
     } else if (peer.pairPeer) {
       // 已配对的连接之间转发 SDP/ICE 等消息
       peer.pairPeer.send(typeof raw === 'string' ? raw : raw.toString('utf8'))

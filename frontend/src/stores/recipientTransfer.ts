@@ -722,6 +722,9 @@ export const useRecipientTransferStore = defineStore('recipientTransfer', () => 
         if (data.code === 404) {
           status.value.error.code = 404
           status.value.error.msg = '404'
+          // 幽灵任务:code 已不存在(发送端已离线/过期),从本地列表移除,
+          // 避免 PushTasksDialog 里残留永远无法配对的条目。
+          remoteTaskStore.markLocalConsumed(code.value)
           dispose()
         } else if (data.code === 0) {
           // 配对成功:保留原 initPDC 流程

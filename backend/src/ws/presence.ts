@@ -24,8 +24,11 @@ export interface FilesSnapshot {
   items: Array<{ key: string; path: string; lastModified: number; size: number }>
 }
 
+export type PushKind = 'file' | 'call'
+
 export interface PendingPush {
   code: string
+  kind: PushKind
   senderWalletId: string
   senderPublicKey: string
   senderDevice: DeviceLabel
@@ -79,6 +82,7 @@ export function pushListToPeer(peer: SignalingPeer, walletId: string, deviceLabe
     type: 'pushList',
     data: list.map((p) => ({
       code: p.code,
+      kind: p.kind,
       fromWalletId: p.senderWalletId,
       fromDevice: p.senderDevice,
       fromPublicKey: p.senderPublicKey,
@@ -125,6 +129,7 @@ export function consumePush(
 // 创建推送(code 已由现有 initSend 生成,4 位取件码)
 export function createPush(
   code: string,
+  kind: PushKind,
   senderWalletId: string,
   senderPublicKey: string,
   senderDevice: DeviceLabel,
@@ -134,6 +139,7 @@ export function createPush(
 ): PendingPush {
   const rec: PendingPush = {
     code,
+    kind,
     senderWalletId,
     senderPublicKey,
     senderDevice,
