@@ -1,200 +1,133 @@
-<h1 align="center">ShareYouSee 文件快传 🚀</h1>
+# ShareYouSee 文件快传
 
-<p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-1.0.0-blue.svg?style=flat-square" />
-  <a href="#" target="_blank">
-    <img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square" />
-  </a>
-</p>
+基于 WebRTC 的点对点文件 / 目录传输工具。浏览器间直连传输,支持文件、目录、目录同步,以及定向推送、语音通话、屏幕共享。
 
-<p align="center">
-  <img src="./frontend/public/ogImg.webp" />
-</p>
+在线体验:https://share.armin.com.cn
 
-## 📖 项目介绍
+## 特性
 
-ShareYouSee 是一个基于 WebRTC 技术的点对点文件传输工具，支持快速的目录同步和文件传输。通过浏览器即可实现安全、高效的文件共享。
+- 点对点加密传输(WebRTC DataChannel)
+- 支持文件和文件夹传输,支持目录同步(add / update / delete)
+- 取件码配对(4 位数字),普通发送凭码可取,定向发送推送给指定联系人 / 群组
+- 基于 BIP39 助记词的身份系统(世界 ID、联系人、群组、定向推送)
+- 语音通话、屏幕共享(WebRTC MediaStream)
+- 局域网自动优化
+- 中英双语界面
+- PWA 可安装
 
-🌐 在线体验：[share.armin.com.cn](https://share.armin.com.cn)
-
-## ✨ 特性
-
-- 🔒 点对点加密传输，确保数据安全
-- 📁 支持文件和文件夹传输
-- 🚀 局域网自动优化，传输更快
-- 🎯 简单易用的界面设计
-- 🌍 支持中英文界面
-- 📲 支持PWA轻量安装
-- 🔐 基于 BIP39 助记词的身份系统(联系人 / 群组 / 定向推送)
-
-## 🛠️ 技术栈
+## 技术栈
 
 - WebRTC + Modern File System API
-- Vue 3 (Composition API) + Vite
-- Pinia (状态管理)
-- TypeScript
-- PrimeVue 4 (unstyled + Aura PassThrough)
-- Tailwind CSS
-- Fastify + Bun(后端 WebSocket 信令 + REST)
-- @fastify/websocket(WebSocket 信令通道)
-- vue-i18n(中英双语)
-- vite-plugin-pwa(PWA + workbox)
+- 前端:Vue 3 + Vite + Pinia + TypeScript + PrimeVue 4 + Tailwind CSS + vue-i18n
+- 后端:Fastify + Bun + @fastify/websocket
+- PWA:vite-plugin-pwa(workbox)
 
-## 🗂️ 目录结构(前后端分离)
+## 目录结构
 
-```
-shareyousee/
-├── frontend/                 # Vue 3 + Vite SPA 前端
-│   ├── src/
-│   │   ├── views/            # 路由页面
-│   │   ├── components/       # UI 组件(零修改平移)
-│   │   ├── stores/           # Pinia 状态(零修改平移)
-│   │   ├── composables/      # 组合式逻辑(含 usePresenceWs 全局 ws)
-│   │   ├── utils/            # 工具(PeerDataChannel / wallet / files)
-│   │   ├── types/            # 类型定义 + global.d.ts
-│   │   ├── locales/          # vue-i18n 中英双语文案
-│   │   ├── presets/aura/     # PrimeVue Aura PT 主题
-│   │   ├── styles/main.css   # 全局 CSS(Tailwind + PrimeVue unstyled 变量)
-│   │   ├── router/index.ts   # Vue Router 4 显式路由表
-│   │   ├── App.vue           # 根组件
-│   │   ├── main.ts           # 应用入口
-│   │   ├── components/
-│   │   │   ├── ClientOnly.vue # ClientOnly 组件(SPA 兼容)
-│   │   │   └── Icon.vue       # Icon 组件(collection:name 格式)
-│   │   └── utils/
-│   │       ├── colorMode.ts  # 暗色模式
-│   │       ├── localePath.ts # useLocalePath
-│   │       ├── seoMeta.ts    # useSeoMeta(no-op)
-│   │       └── useState.ts   # useState(module Map shim)
-│   ├── public/               # 静态资源 + PWA sw.js + manifest
-│   ├── vite.config.ts        # Vite + PWA + unplugin-icons 配置
-│   └── package.json
-├── backend/                  # Fastify + Bun 后端
-│   ├── src/
-│   │   ├── server.ts         # Fastify 入口
-│   │   ├── ws/
-│   │   │   ├── connect.ts    # WebSocket 信令(取件码配对 + Push 协议)
-│   │   │   └── presence.ts   # 在线状态 + 定向推送注册表
-│   │   └── utils/
-│   │       └── TransCount.ts # 全局传输计数(本地文件持久化)
-│   └── Dockerfile
-├── Caddyfile                 # 反代配置(前端静态 + /api/* 反代到后端)
-├── docker-compose.yaml
-├── scripts/
-│   └── package-deploy.sh     # 打包前后端分离产物
-├── AGENTS.md                 # Agent 维护约束
-└── README.md
-```
+    shareyousee/
+    ├── frontend/                 # Vue 3 + Vite SPA 前端
+    │   ├── src/
+    │   │   ├── views/            # 路由页面(Home / Sender / Recipient / Tasks / Call)
+    │   │   ├── components/       # UI 组件
+    │   │   ├── stores/           # Pinia 状态(含 senderTransfer / recipientTransfer / call)
+    │   │   ├── composables/      # 组合式逻辑(含 usePresenceWs 全局 ws)
+    │   │   ├── utils/            # 工具(PeerDataChannel / PeerMedia / wallet / files)
+    │   │   ├── types/            # 类型定义
+    │   │   ├── locales/          # vue-i18n 中英双语文案
+    │   │   ├── presets/aura/     # PrimeVue Aura 主题
+    │   │   ├── router/index.ts   # Vue Router 路由表
+    │   │   ├── App.vue           # 根组件
+    │   │   └── main.ts           # 应用入口
+    │   ├── public/               # 静态资源 + PWA sw.js
+    │   ├── vite.config.ts        # Vite + PWA + 图标插件配置
+    │   └── package.json
+    ├── backend/                  # Fastify + Bun 后端
+    │   ├── src/
+    │   │   ├── server.ts         # Fastify 入口(WebSocket + REST + 可选静态托管)
+    │   │   ├── ws/connect.ts     # WebSocket 信令(取件码配对 + SDP/ICE 中转 + Push 协议)
+    │   │   ├── ws/presence.ts    # 在线状态 + 定向推送注册表
+    │   │   └── utils/TransCount.ts
+    │   └── Dockerfile
+    ├── Caddyfile                 # 反代配置(静态资源 + /api/* 反代)
+    ├── docker-compose.yaml
+    └── scripts/package-deploy.sh # 一键打包脚本
 
-## 📦 安装与构建
+## 环境要求
 
-```bash
-# 后端
-cd backend && bun install && bun run build
+- Bun 1.1+（包管理器,不要用 npm / yarn / pnpm）
+- 现代浏览器(目录传输、屏幕共享需要 HTTPS + 现代 File System API)
 
-# 前端
-cd frontend && bun install && bun run build
-```
+## 安装依赖
 
-## 🚀 本地开发
+    cd backend && bun install
+    cd frontend && bun install
 
-```bash
-# 启动后端(端口 3002)
-cd backend && bun run dev
+## 编译 / 构建
 
-# 启动前端(另一终端, 端口 5173)
-cd frontend && bun run dev
-```
+    # 后端
+    cd backend && bun run build      # 产物 → backend/dist/
 
-Vite 已配置 `/api` 反代到 `http://127.0.0.1:3002`,前端访问 `http://localhost:5173` 即可联调完整流程。
+    # 前端
+    cd frontend && bun run build     # 产物 → frontend/dist/
 
-## 🌐 部署
+## 本地开发
+
+    # 启动后端(端口 3002)
+    cd backend && bun run dev
+
+    # 启动前端(另一终端,端口 5173,自带 HTTPS 自签证书)
+    cd frontend && bun run dev
+
+Vite 已配置 /api 反代到 http://127.0.0.1:3002。前端访问 http://localhost:5173(或局域网 IP https://192.168.x.x:5173)即可联调完整流程。
+
+自签证书生成:
+
+    cd frontend && bun run scripts/gen-dev-certs.mjs
+
+## 生产部署
 
 ### 反向代理 + 静态托管(推荐)
 
-```bash
-# 1. 构建产物
-cd frontend && bun run build       # → frontend/dist/
-cd backend && bun run build        # → backend/dist/
+1. 构建产物:
 
-# 2. 上传到服务器
-scp -r frontend/dist user@host:/var/www/shareyousee/frontend-dist
-scp -r backend/dist user@host:/var/www/shareyousee/backend/dist
-scp -r backend/node_modules user@host:/var/www/shareyousee/backend/
+       cd frontend && bun run build
+       cd backend && bun run build
 
-# 3. 启动后端
-ssh user@host 'cd /var/www/shareyousee/backend && PORT=3002 bun run dist/server.js'
+2. 前端静态资源由 Caddy / Nginx 直托管(frontend/dist/)
+3. 后端:
 
-# 4. 配置 Caddy(见仓库 Caddyfile)
-```
+       cd backend && PORT=3002 bun run dist/server.js
+
+4. Caddy 反代 /api/* 与 WebSocket 到 127.0.0.1:3002(见仓库 Caddyfile)
 
 ### 一键打包
 
-```bash
-./scripts/package-deploy.sh
-# 生成 dist/shareyousee-output.tar.gz,包含 frontend-dist + backend/dist + node_modules
-```
+    ./scripts/package-deploy.sh
+    # 生成 dist/shareyousee-output.tar.gz
 
-### Docker(后端容器 + 前端静态)
+### Docker
 
-```bash
-docker compose up -d
-# 后端监听 3002,前端 dist 挂载到 /app/public-dist 由 Fastify serve
-# 生产场景建议:仅部署后端容器,前端静态资源由 Caddy 直托管
-```
+    docker compose up -d
+    # 后端监听 3002,前端 dist 挂载到 /app/public-dist 由 Fastify serve
 
-> [!IMPORTANT]
->
-> 目录传输和同步需要 `HTTPS` 以及浏览器支持,一般新版本的桌面浏览器都支持
->
-> 本项目自身的 HTTPS 配置方式(测试环境)请参考:
->
-> - [Nuxt 部署教程(英文)](https://nuxt.com/docs/4.x/getting-started/deployment#entry-point)
->
-> ShareYouSee 不建议直接以 HTTPS 形式进行生产环境部署,而应当位于反向代理服务器之后,请参考:
->
-> - [Nginx](https://nginx.org/en/docs/http/configuring_https_servers.html)
-> - [Apache httpd](https://httpd.apache.org/docs/current/ssl/)
-> - [Caddy](https://caddyserver.com/docs/quick-starts/https)
-> - [Windows IIS](https://learn.microsoft.com/zh-cn/iis/manage/configuring-security/how-to-set-up-ssl-on-iis)
+## 使用提示
 
-## 🐳 Docker 镜像
+1. 取件码为 4 位数字,发送端通过 WebSocket 获取,接收端凭码配对。
+2. 实际文件数据走 WebRTC DataChannel(信令只做配对和 SDP/ICE 中转)。
+3. 传输目录或同步目录需要 HTTPS + 现代浏览器支持。
+4. 同一局域网内传输速度最快;部分网络环境可能阻止 P2P 连接导致传输失败。
+5. 语音通话 / 屏幕共享:先选联系人或群组,再点首页对应入口;被叫方从推送通知进入直接接收。
 
-> [!CAUTION]
->
-> `shouchenicu/fastsend` 是此项目在 Docker Hub 上的 **唯一** 官方镜像!
->
-> 当前已发现 12 个第三方镜像,其中5个[^1]的下载使用量高于官方镜像。请注意甄别,风险自负!
+## 错误码
 
-[^1]: 比如 `niliaerith/fastsend`
+- 403 用户拒绝
+- 404 取件码 / 文件不存在
+- -1 能力不支持(目录传输)
+- -2 连接断开
+- -3 哈希失败
+- -5 信令服务异常
+- -10 超时
 
-```bash
-# 后端镜像(已发布)
-docker run -d --name fastsend -p 3002:3002 shouchenicu/fastsend:latest
-```
+## 开源协议
 
-## 💡 使用提示
-
-1. 确保浏览器启用了 WebRTC 功能
-2. 如需传输文件夹或同步目录,请确保浏览器支持现代文件系统 API 并已启用 HTTPS 传输
-3. 在同一局域网内传输速度最快
-4. 建议在网络状态良好时使用,部分网络环境可能会阻止 P2P / WebRTC 正确建立连接,从而导致传输失败
-
-## 👨‍💻 作者
-
-**ShouChen**
-
-- 博客: [shouchen.blog](https://shouchen.blog)
-- X: [@ShouChen\_](https://x.com/ShouChen_)
-
-## 🤝 贡献
-
-欢迎提交 Issue 和 Pull Request！
-
-## 📝 开源协议
-
-本项目基于 MIT 协议开源。
-
-## ⭐ 支持项目
-
-如果这个项目对你有帮助,欢迎给一个 star 支持一下!
+MIT
