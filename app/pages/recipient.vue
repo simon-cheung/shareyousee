@@ -3,6 +3,7 @@ const { t } = useI18n()
 const localePath = useLocalePath()
 const router = useRouter()
 const recipientStore = useRecipientTransferStore()
+const userStore = useUserStore()
 const {
   isModernFileAPISupport,
   peerUserInfo,
@@ -28,6 +29,9 @@ const doReceive = recipientStore.doReceive
 const downloadFile = recipientStore.downloadFile
 
 onMounted(() => {
+  useContactsStore().initialize()
+  useTaskStore().initialize()
+  useRemoteTaskStore().clear()
   const query = router.currentRoute.value.query
   const receiveCode = `${query.code || ''}`
   if (recipientStore.redirectHomeIfInvalidCode(receiveCode)) {
@@ -296,11 +300,11 @@ onUnmounted(() => {
 
           <div v-if="status.isDone" class="py-6">
             <!-- buy me coffee -->
-            <NuxtLink to="https://www.buymeacoffee.com/shouchen" target="_blank">
+            <!-- <NuxtLink to="https://www.buymeacoffee.com/shouchen" target="_blank">
               <Button rounded outlined severity="contrast" class="w-full tracking-wider"
                 ><IconCoffee class="size-[1.125rem] mr-2" />{{ t('btn.buyMeCoffee') }}</Button
               >
-            </NuxtLink>
+            </NuxtLink> -->
 
             <!-- 回主页 -->
             <NuxtLink :to="localePath('/')">

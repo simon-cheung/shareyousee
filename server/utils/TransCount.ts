@@ -1,25 +1,33 @@
 import fs from 'fs'
 
 let transCount = 0
-if (!fs.existsSync('transCount')) {
-  saveTransCount()
-}
-transCount = Number(fs.readFileSync('transCount').toString('utf8'))
-if (!transCount) {
-  transCount = 0
-  saveTransCount()
+
+function loadFromDisk() {
+  try {
+    if (fs.existsSync('transCount')) {
+      const raw = fs.readFileSync('transCount', 'utf8')
+      const n = Number(raw)
+      if (!Number.isNaN(n)) transCount = n
+    }
+  } catch (e) {
+    console.warn('transCount load failed', e)
+  }
+  if (transCount === 0) saveToDisk()
 }
 
-console.log('transCount: ' + transCount)
-
-function saveTransCount() {
-  fs.writeFileSync('transCount', transCount + ' ', 'utf8')
+function saveToDisk() {
+  try {
+    fs.writeFileSync('transCount', transCount + ' ', 'utf8')
+  } catch (e) {
+    console.warn('transCount save failed', e)
+  }
 }
+
+loadFromDisk()
 
 export function increaseTransCount() {
   transCount++
-  saveTransCount()
-  console.log('transCount: ' + transCount)
+  saveToDisk()
 }
 
 export function getTransCount() {

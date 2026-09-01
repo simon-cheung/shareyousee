@@ -1,6 +1,7 @@
 import CryptoJS from 'crypto-js'
 import { toCanvas } from 'qrcode'
 import { PeerDataChannel } from '~/utils/PeerDataChannel'
+import { snapshotFromFileMap } from '~/types/task'
 import {
   createSenderCurrentFileState,
   createSenderStatusState,
@@ -13,6 +14,7 @@ import {
 /**
  * 发送端业务仓库。
  * 所有发送流程状态、连接控制和文件发送动作都集中在这里，页面仅负责绑定展示。
+ * ShareYouSee 行政特征:传输开始/结束时记录联系人端点与任务日志。
  */
 export const useSenderTransferStore = defineStore('senderTransfer', () => {
   const { t } = useI18n()
@@ -23,6 +25,8 @@ export const useSenderTransferStore = defineStore('senderTransfer', () => {
   const appStore = useAppStore()
   const userStore = useUserStore()
   const transferConfigStore = useTransferConfigStore()
+  const contactsStore = useContactsStore()
+  const taskStore = useTaskStore()
 
   const peerUserInfo = ref<UserInfo>({ nickname: 'unknown', avatarURL: '' })
   const code = ref('')
@@ -33,12 +37,24 @@ export const useSenderTransferStore = defineStore('senderTransfer', () => {
   const curFile = ref<SenderCurrentFileState>(createSenderCurrentFileState())
   const status = ref<SenderStatusState>(createSenderStatusState())
 
+  // ShareYouSee:当前任务的 taskId,用于 done/err 阶段写入任务日志
+  let currentTaskId = ''
+
   let calcSpeedJobId: ReturnType<typeof setInterval> | undefined
   let ws: WebSocket | null = null
   let pdc: PeerDataChannel | null = null
   const hasher = CryptoJS.algo.MD5.create()
-  // syncDir 场景下，payload 中的键是去根后的，需要映射回原始文件项
+  // syncDir 场景下,payload 中的键是去根后的,需要映射回原始文件项
   let payloadFileMap: FlatFileMap = {}
+  // ShareYouSee 行政特征:在 ws.onopen 时记录,ws.onmessage 收到 'code' 后取出消费
+  // 注意:code 用服务端下发的 code.value,不在本地预设
+  let pendingPushMeta: {
+    targets: Array<{ walletId: string; deviceLabel?: string }>
+    filesSnapshot: any
+    fromWalletId: string
+    fromPublicKey: string
+    fromDevice: string
+  } | null = null
 
   const shareLink = computed(() => {
     if (!import.meta.client || !code.value) {
@@ -58,6 +74,7 @@ export const useSenderTransferStore = defineStore('senderTransfer', () => {
     curFile.value = createSenderCurrentFileState()
     status.value = createSenderStatusState()
     payloadFileMap = {}
+    pendingPushMeta = null
   }
 
   function dispose() {
@@ -108,12 +125,50 @@ export const useSenderTransferStore = defineStore('senderTransfer', () => {
       payloadFileMap = transferConfigStore.fileMap
     }
 
+    // ShareYouSee 行政特征:写入 pending 任务日志
+    const snapshot = snapshotFromFileMap(transferConfigStore.type, payload.fileMap, payload.root)
+    const totalBytes = Object.values(transferConfigStore.fileMap).reduce(
+      (acc, f) => acc + (Number(f.size) || 0),
+      0
+    )
+    currentTaskId = taskStore.addPending({
+      id: '',
+      role: 'sender',
+      type: transferConfigStore.type,
+      peerWalletId: peerUserInfo.value.walletId,
+      peerDeviceLabel: peerUserInfo.value.deviceLabel as any,
+      peerNickname: peerUserInfo.value.nickname,
+      status: 'pending',
+      startTime: Date.now(),
+      totalBytes,
+      transmittedBytes: 0,
+      filesSnapshot: snapshot
+    })
+
     await pdc?.sendData(JSON.stringify({ type: 'files', data: payload }))
   }
 
   async function handleObjData(obj: any) {
     if (obj.type === 'user') {
       peerUserInfo.value = obj.data
+      // ShareYouSee 行政特征:收到对端身份后,登记联系人端点
+      const walletId = obj.data?.walletId
+      const publicKey = obj.data?.publicKey
+      const deviceLabel = obj.data?.deviceLabel
+      if (walletId && publicKey && deviceLabel) {
+        contactsStore.upsertEndpoint(walletId, publicKey, deviceLabel, 'transfer')
+      }
+      if (walletId && obj.data?.nickname) {
+        contactsStore.applyAliasFromNickname(walletId, obj.data.nickname)
+      }
+      // 任务日志同步刷新对端信息(可能在 P2P 中改了昵称)
+      if (currentTaskId) {
+        taskStore.updatePeer(currentTaskId, {
+          peerWalletId: walletId,
+          peerDeviceLabel: deviceLabel as any,
+          peerNickname: obj.data?.nickname
+        })
+      }
       status.value.isWaitingConnect = false
       if (userStore.isConfirmDefault) {
         await confirmUser(true)
@@ -188,8 +243,21 @@ export const useSenderTransferStore = defineStore('senderTransfer', () => {
     }
 
     if (obj.type === 'done') {
+      // ShareYouSee 行政特征:传输完成前同步最新身份(nickname/avatar 可能更新过)
+      // 必须先发,再 dispose 让 pdc 还能 send
+      try {
+        await pdc?.sendData(JSON.stringify({ type: 'user', data: userStore.userInfo }))
+      } catch (e) {
+        console.warn('final user sync failed', e)
+      }
       status.value.isDone = true
       dispose()
+      // ShareYouSee 行政特征:任务日志收尾
+      taskStore.complete(currentTaskId, {
+        status: 'done',
+        transmittedBytes: totalTransmittedBytes.value,
+        endTime: Date.now()
+      })
       toast.add({
         severity: 'success',
         summary: 'Success',
@@ -201,6 +269,8 @@ export const useSenderTransferStore = defineStore('senderTransfer', () => {
 
     if (obj.type === 'err' && obj.data) {
       status.value.warn.code = obj.data
+      // ShareYouSee 行政特征:任务失败落账
+      if (currentTaskId) taskStore.setError(currentTaskId, obj.data)
     }
   }
 
@@ -268,6 +338,28 @@ export const useSenderTransferStore = defineStore('senderTransfer', () => {
       return
     }
 
+    // ShareYouSee 行政特征:消费推送模式 sessionStorage
+    // 形态:targets 是端点数组 [{ walletId, deviceLabel? }]
+    // code 不在 sessionStorage 里预设,而是用服务端下发的 code.value
+    let pushMode: {
+      targets: Array<{ walletId: string; deviceLabel?: string }>
+      filesSnapshot: any
+      fromWalletId: string
+      fromPublicKey: string
+      fromDevice: string
+    } | null = null
+    if (import.meta.client) {
+      const raw = sessionStorage.getItem('sy-push-pending')
+      if (raw) {
+        try {
+          pushMode = JSON.parse(raw)
+          sessionStorage.removeItem('sy-push-pending')
+        } catch (e) {
+          console.warn('parse push pending failed', e)
+        }
+      }
+    }
+
     try {
       ws = new WebSocket(location.origin.replace('http', 'ws') + '/api/connect')
     } catch (error) {
@@ -281,7 +373,22 @@ export const useSenderTransferStore = defineStore('senderTransfer', () => {
       status.value.isConnectServer = true
       startTime.value = Date.now()
       calcSpeedJobId = setInterval(calcSpeedFn, 1e3)
+      // ShareYouSee:先注册自身 presence(不破坏现有 send 流程)
+      if (userStore.hasWallet) {
+        ws?.send(
+          JSON.stringify({
+            type: 'register',
+            walletId: userStore.walletInfo.walletId,
+            publicKey: userStore.walletInfo.publicKey,
+            deviceLabel: userStore.walletInfo.deviceLabel
+          })
+        )
+      }
       ws?.send(JSON.stringify({ type: 'send' }))
+      // 推送模式:保存引用,以便在收到 'code' 后立即上报
+      if (pushMode) {
+        pendingPushMeta = pushMode
+      }
     }
     ws.onmessage = async (event) => {
       const data = JSON.parse(event.data)
@@ -289,6 +396,23 @@ export const useSenderTransferStore = defineStore('senderTransfer', () => {
         code.value = data.code
         initPDC()
         status.value.isIniting = false
+        // 推送模式:立即把 pendingPush 同步给服务端
+        if (pendingPushMeta) {
+          // 使用服务端下发的 code,与 waitConnectPool 一致
+          ws?.send(
+            JSON.stringify({
+              type: 'pendingPush',
+              code: code.value,
+              targets: pendingPushMeta.targets,
+              filesSnapshot: pendingPushMeta.filesSnapshot,
+              senderWalletId: pendingPushMeta.fromWalletId,
+              senderPublicKey: pendingPushMeta.fromPublicKey,
+              senderDevice: pendingPushMeta.fromDevice,
+              ttlSec: 600
+            })
+          )
+          pendingPushMeta = null
+        }
         return
       }
       if (data.type === 'sdp') {

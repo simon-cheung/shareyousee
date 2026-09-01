@@ -1,11 +1,12 @@
-name: FastSend
+name: ShareYouSee
 services:
   app:
     build:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - '3002:3002'
     environment:
       - NODE_ENV=production
+      - PORT=3002
     command: node server/index.mjs

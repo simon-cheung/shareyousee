@@ -19,7 +19,7 @@ WORKDIR /app
 COPY --from=builder /app/.output /app
 
 # 暴露端口
-EXPOSE 3000
+EXPOSE 3002
 
 # 启动应用
 CMD ["node", "server/index.mjs"]

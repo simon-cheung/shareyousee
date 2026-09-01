@@ -1,17 +1,18 @@
 <script setup lang="ts">
 useSeoMeta({
-  ogTitle: 'Fast Send',
+  ogTitle: 'ShareYouSee',
   ogType: 'website',
-  ogImage: 'https://fastsend.ing/ogImg.webp',
+  ogImage: 'https://share.armin.com.cn/ogImg.webp',
   twitterCard: 'summary_large_image',
-  twitterTitle: 'Fast Send',
+  twitterTitle: 'ShareYouSee',
   twitterDescription: 'Fast peer-to-peer file and directory transfers',
-  twitterImage: 'https://fastsend.ing/ogImg.webp',
+  twitterImage: 'https://share.armin.com.cn/ogImg.webp',
   twitterSite: '@ShouChen_',
   twitterCreator: '@ShouChen_'
 })
 
 const appStore = useAppStore()
+const homeStore = useHomeStore()
 
 onMounted(() => {
   window.addEventListener('beforeinstallprompt', (event) => {
@@ -36,4 +37,11 @@ onMounted(() => {
   <ScrollTop />
   <InstallPWA />
   <DocPanel />
+  <!-- ShareYouSee 全局钱包首次启动向导 -->
+  <ClientOnly>
+    <WalletSetupDialog
+      :visible="homeStore.isWalletSetupOpen"
+      @update:visible="homeStore.closeWalletSetup"
+    />
+  </ClientOnly>
 </template>

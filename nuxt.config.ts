@@ -1,12 +1,60 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 import path from 'path'
+import { existsSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 export default defineNuxtConfig({
   srcDir: 'app',
-  devtools: { enabled: true },
+  // 关闭 Nuxt DevTools(默认开启,会拖慢 dev 启动);保留 Vite 内置 inspector
+  devtools: { enabled: false },
   css: ['@/assets/main.css'],
 
   imports: {
     dirs: ['stores']
+  },
+
+  vite: {
+    // 预声明 subpath imports,避免 Vite 每次刷新都重新 optimize deps
+    optimizeDeps: {
+      include: [
+        '@noble/hashes/sha256',
+        '@noble/hashes/utils',
+        '@scure/bip39',
+        '@scure/bip39/wordlists/english',
+        '@noble/curves/p256',
+        '@noble/curves/nist',
+        'crypto-js'
+      ]
+    },
+    // HTTPS + 自签证书:让局域网 IP(192.168.x.x)也能跑 WebCrypto
+    // 使用方式:
+    //   1. 一次性生成证书: yarn dev:cert  (生成 .dev-certs/cert.pem + key.pem)
+    //   2. 浏览器首次访问 https://你的IP:3000 时,点击"高级"→"继续访问"信任证书
+    server: {
+      host: '0.0.0.0',
+      https:
+        existsSync(resolve(__dirname, '.dev-certs/cert.pem')) &&
+        existsSync(resolve(__dirname, '.dev-certs/key.pem'))
+          ? {
+              cert: resolve(__dirname, '.dev-certs/cert.pem'),
+              key: resolve(__dirname, '.dev-certs/key.pem')
+            }
+          : false
+    }
+  },
+
+  devServer: {
+    host: '0.0.0.0',
+    https:
+      existsSync(resolve(__dirname, '.dev-certs/cert.pem')) &&
+      existsSync(resolve(__dirname, '.dev-certs/key.pem'))
+        ? {
+            cert: resolve(__dirname, '.dev-certs/cert.pem'),
+            key: resolve(__dirname, '.dev-certs/key.pem')
+          }
+        : undefined
   },
 
   modules: [
@@ -29,7 +77,7 @@ export default defineNuxtConfig({
   },
 
   i18n: {
-    baseUrl: 'https://fastsend.ing',
+    baseUrl: 'https://share.armin.com.cn',
     locales: [
       { code: 'en', language: 'en-US' },
       { code: 'zh', language: 'zh-CN' }
@@ -43,12 +91,12 @@ export default defineNuxtConfig({
   },
 
   site: {
-    // url: 'http://localhost:3000',
-    url: 'https://fastsend.ing',
-    name: 'FastSend',
-    // 一个基于WebRTC实现点对点快速目录同步和文件传输的工具站
+    // url: 'http://localhost:3002',
+    url: 'https://share.armin.com.cn',
+    name: 'ShareYouSee',
+    // 一个基于 WebRTC 实现点对点快速目录同步、文件传输与定向分享的工具站
     description:
-      'A tool station based on WebRTC to achieve point-to-point fast directory synchronization and file transfer'
+      'A tool station based on WebRTC to achieve point-to-point fast directory synchronization, file transfer and targeted sharing'
     // defaultLocale: 'zh'
   },
 
@@ -56,14 +104,22 @@ export default defineNuxtConfig({
     enabled: false
   },
 
+  icon: {
+    serverBundle: {
+      collections: ['solar', 'icon-park-outline']
+    },
+    provider: 'iconify',
+    iconifyApiEndpoint: 'https://api.iconify.design'
+  },
+
   primevue: {
     options: {
       unstyled: true,
       ripple: true
     },
-    importPT: { from: path.resolve(__dirname, './presets/aura/') } // Import and apply preset
-    // For Windows
-    // importPT: { as: 'Aura', from: '~/presets/aura' }
+    // 用 nuxt 别名引用 srcDir(app/)内的目录,避免绝对路径被序列化到 __NUXT__ config
+    // presets 目录在 PR 阶段已挪到 app/presets/aura/
+    importPT: { from: '~/presets/aura' }
   },
 
   colorMode: {
@@ -95,8 +151,8 @@ export default defineNuxtConfig({
     // },
 
     manifest: {
-      name: 'FastSend',
-      short_name: 'FastSend',
+      name: 'ShareYouSee',
+      short_name: 'ShareYouSee',
       theme_color: '#ffffff',
 
       icons: [

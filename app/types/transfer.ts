@@ -6,10 +6,22 @@ export type TransferType = '' | 'transFile' | 'transDir' | 'syncDir'
 
 /**
  * 用户基础信息。
+ * walletId/publicKey/deviceLabel 是 ShareYouSee 行政特征新增的可选字段,
+ * 旧版本客户端会忽略未知字段,因此保持向后兼容。
  */
 export interface UserInfo {
   nickname: string
   avatarURL: string
+  walletId?: string
+  publicKey?: string
+  deviceLabel?: string
+}
+
+export function createUserInfo(): UserInfo {
+  return {
+    nickname: '',
+    avatarURL: ''
+  }
 }
 
 /**

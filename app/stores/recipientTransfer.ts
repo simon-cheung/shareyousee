@@ -1,4 +1,6 @@
 import CryptoJS from 'crypto-js'
+import { snapshotFromFileMap } from '~/types/task'
+import type { DeviceLabel } from '~/types/wallet'
 import {
   createRecipientCurrentFileState,
   createRecipientStatusState,
@@ -13,7 +15,10 @@ import { PeerDataChannel } from '~/utils/PeerDataChannel'
 
 /**
  * 接收端业务仓库。
- * 负责接收连接、文件写入、目录对比与同步动作，页面只保留展示与组件绑定。
+ * 负责接收连接、文件写入、目录对比与同步动作,页面只保留展示与组件绑定。
+ * ShareYouSee 行政特征:
+ * - 接收端 ws.onopen 时 register,服务端顺势 pushList
+ * - P2P 完成时主动发 consumePush,告知服务端从 targets 移除本端点
  */
 export const useRecipientTransferStore = defineStore('recipientTransfer', () => {
   const { t } = useI18n()
@@ -23,6 +28,9 @@ export const useRecipientTransferStore = defineStore('recipientTransfer', () => 
 
   const appStore = useAppStore()
   const userStore = useUserStore()
+  const contactsStore = useContactsStore()
+  const taskStore = useTaskStore()
+  const remoteTaskStore = useRemoteTaskStore()
 
   const isModernFileAPISupport = ref(true)
   const peerUserInfo = ref<UserInfo>({ nickname: 'unknown', avatarURL: '' })
@@ -41,6 +49,9 @@ export const useRecipientTransferStore = defineStore('recipientTransfer', () => 
   const curFile = ref<RecipientCurrentFileState>(createRecipientCurrentFileState())
   const status = ref<RecipientStatusState>(createRecipientStatusState())
   const syncDirStatus = ref<SyncDirState>(createSyncDirState())
+
+  // ShareYouSee:当前任务 id
+  let currentTaskId = ''
 
   const hasher = CryptoJS.algo.MD5.create()
 
@@ -81,6 +92,10 @@ export const useRecipientTransferStore = defineStore('recipientTransfer', () => 
     syncTargetDH = undefined
   }
 
+  // 锁定中的 code 状态走 remoteTaskStore(usePresenceWs 也会过滤同一处)
+  // 这里保留模块变量用于业务 ws 的 pushList 过滤冗余写入
+  let lockedCode = ''
+
   function dispose() {
     if (calcSpeedJobId) {
       clearInterval(calcSpeedJobId)
@@ -96,6 +111,11 @@ export const useRecipientTransferStore = defineStore('recipientTransfer', () => 
     ws = null
     pdc?.dispose()
     pdc = null
+    // 释放锁定:dispose 后服务端会再次 pushList,这时允许显示
+    if (lockedCode) {
+      remoteTaskStore.unlockCode(lockedCode)
+      lockedCode = ''
+    }
   }
 
   function calcSpeedFn() {
@@ -159,6 +179,24 @@ export const useRecipientTransferStore = defineStore('recipientTransfer', () => 
   async function handleObjData(obj: any) {
     if (obj.type === 'user') {
       peerUserInfo.value = obj.data
+      // ShareYouSee 行政特征:登记对端联系人端点
+      const walletId = obj.data?.walletId
+      const publicKey = obj.data?.publicKey
+      const deviceLabel = obj.data?.deviceLabel
+      if (walletId && publicKey && deviceLabel) {
+        contactsStore.upsertEndpoint(walletId, publicKey, deviceLabel, 'transfer')
+      }
+      if (walletId && obj.data?.nickname) {
+        contactsStore.applyAliasFromNickname(walletId, obj.data.nickname)
+      }
+      // 任务日志同步刷新对端信息
+      if (currentTaskId) {
+        taskStore.updatePeer(currentTaskId, {
+          peerWalletId: walletId,
+          peerDeviceLabel: deviceLabel as any,
+          peerNickname: obj.data?.nickname
+        })
+      }
       return
     }
 
@@ -439,6 +477,30 @@ export const useRecipientTransferStore = defineStore('recipientTransfer', () => 
     receiveFileIndex.value = 0
     totalTransmittedBytes.value = 0
 
+    // ShareYouSee 行政特征:写入 pending 任务日志
+    const snapshot = snapshotFromFileMap(
+      peerFilesInfo.value.type,
+      peerFilesInfo.value.fileMap,
+      peerFilesInfo.value.root
+    )
+    const totalBytes = Object.values(peerFilesInfo.value.fileMap).reduce(
+      (acc, f) => acc + (Number(f.size) || 0),
+      0
+    )
+    currentTaskId = taskStore.addPending({
+      id: '',
+      role: 'recipient',
+      type: peerFilesInfo.value.type,
+      peerWalletId: peerUserInfo.value.walletId,
+      peerDeviceLabel: peerUserInfo.value.deviceLabel as any,
+      peerNickname: peerUserInfo.value.nickname,
+      status: 'pending',
+      startTime: Date.now(),
+      totalBytes,
+      transmittedBytes: 0,
+      filesSnapshot: snapshot
+    })
+
     if (peerFilesInfo.value.type === 'transDir') {
       waitReceiveFileList.value = Object.keys(selectedKeys.value).filter(
         (name) => !/\/$/.test(name)
@@ -561,10 +623,20 @@ export const useRecipientTransferStore = defineStore('recipientTransfer', () => 
         await cleanupEmptyDirs(syncTargetDH, syncDirStatus.value.waitDeleteList)
       }
 
+      // ShareYouSee 行政特征:传输完成前同步最新身份(nickname/avatar 可能更新过)
+      await pdc?.sendData(JSON.stringify({ type: 'user', data: userStore.userInfo }))
       await pdc?.sendData(JSON.stringify({ type: 'done' }))
       status.value.isReceiving = false
       status.value.isDone = true
       calcSpeedFn()
+      // ShareYouSee 行政特征:任务完成
+      taskStore.complete(currentTaskId, {
+        status: 'done',
+        transmittedBytes: totalTransmittedBytes.value,
+        endTime: Date.now()
+      })
+      // ShareYouSee 行政特征:P2P 完成,告知服务端从 targets 移除本端点
+      sendConsumePush(code.value)
       dispose()
       toast.add({
         severity: 'success',
@@ -574,12 +646,15 @@ export const useRecipientTransferStore = defineStore('recipientTransfer', () => 
       })
     } catch (error) {
       console.warn(error)
+
       // 异常时关闭未完成的写入流，避免文件句柄泄漏
       await closeCurFileWriter()
       if (calcSpeedJobId) {
         clearInterval(calcSpeedJobId)
         calcSpeedJobId = undefined
       }
+      // ShareYouSee 行政特征:任务失败落账
+      if (currentTaskId) taskStore.setError(currentTaskId, -3)
       toast.add({ severity: 'error', summary: 'Error', detail: `${error}`, life: 5e3 })
       status.value.isLock = false
       status.value.isReceiving = false
@@ -590,11 +665,25 @@ export const useRecipientTransferStore = defineStore('recipientTransfer', () => 
     resetState()
     isModernFileAPISupport.value = isModernFileAPIAvailable()
     code.value = receiveCode
+    // 锁定当前 code:服务端 register 后还会再下发一次,这里先过滤掉,避免红点复活
+    lockedCode = receiveCode
+    remoteTaskStore.lockCode(receiveCode)
     appStore.setFullScreenLoading(false)
 
     ws = new WebSocket(location.origin.replace('http', 'ws') + '/api/connect')
     ws.onopen = () => {
       status.value.isConnectServer = true
+      // ShareYouSee:接收端先 register 自身 presence,服务端可立刻通知推送
+      if (userStore.hasWallet) {
+        ws?.send(
+          JSON.stringify({
+            type: 'register',
+            walletId: userStore.walletInfo.walletId,
+            publicKey: userStore.walletInfo.publicKey,
+            deviceLabel: userStore.walletInfo.deviceLabel
+          })
+        )
+      }
       ws?.send(JSON.stringify({ type: 'receive', code: code.value }))
       setTimeout(() => {
         if (status.value.isIniting) {
@@ -613,8 +702,14 @@ export const useRecipientTransferStore = defineStore('recipientTransfer', () => 
           status.value.error.msg = '404'
           dispose()
         } else if (data.code === 0) {
+          // 配对成功:保留原 initPDC 流程
           initPDC()
         }
+        return
+      }
+      // ShareYouSee 行政特征:服务端主动 pushList 回执(register 后)
+      if (data.type === 'pushList') {
+        remoteTaskStore.setPendingList(data.data || [])
         return
       }
       if (data.type === 'sdp') {
@@ -642,6 +737,25 @@ export const useRecipientTransferStore = defineStore('recipientTransfer', () => 
     return false
   }
 
+  // ShareYouSee 行政特征:P2P 完成后,通知服务端从 targets 移除本端点
+  function sendConsumePush(codeToConsume: string) {
+    if (!ws || !codeToConsume) return
+    const walletId = userStore.walletInfo?.walletId || ''
+    const deviceLabel = userStore.walletInfo?.deviceLabel || 'unknown'
+    try {
+      ws.send(
+        JSON.stringify({
+          type: 'consumePush',
+          code: codeToConsume,
+          walletId,
+          deviceLabel
+        })
+      )
+    } catch (e) {
+      console.warn('consumePush send failed', e)
+    }
+  }
+
   function cleanup() {
     dispose()
   }
@@ -667,6 +781,7 @@ export const useRecipientTransferStore = defineStore('recipientTransfer', () => 
     initialize,
     cleanup,
     redirectHomeIfInvalidCode,
+    sendConsumePush,
     selectSyncDir,
     doReceive,
     downloadFile

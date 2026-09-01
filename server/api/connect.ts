@@ -1,20 +1,32 @@
 import { TTLCache } from '@isaacs/ttlcache'
 import { increaseTransCount } from '../utils/TransCount'
+import {
+  registerPeer,
+  unregisterPeer,
+  createPush,
+  consumePush,
+  walletIdOfPeer,
+  deviceLabelOfPeer,
+  pushListToPeer,
+  type DeviceLabel,
+  type FilesSnapshot,
+  type TargetEndpoint
+} from '../utils/presence'
 
-// 客户端待初始化连接池，key是peer的id
+// 客户端待初始化连接池,key 是 peer 的 id
 const initPool = new TTLCache<string, any>({
   max: 8192,
   ttl: 600e3,
   dispose: (peer) => {
     if (!peer.isInited) {
-      // 如果超时未初始化，则断开连接
+      // 如果超时未初始化,则断开连接
       peer.close()
     }
   }
 })
 
 // 待连接连接池
-// key为：连接ID
+// key 为:连接 ID
 const waitConnectPool = new TTLCache<string, any>({
   max: 20000,
   ttl: 600e3,
@@ -38,13 +50,15 @@ const initedPool = new TTLCache<string, any>({
 function disposePeer(peer: any) {
   initPool.delete(peer.id)
   initedPool.delete(peer.id)
+  // ShareYouSee 行政特征:断开时同时从在线 presence 移除
+  unregisterPeer(peer)
   peer.close()
   if (peer.pairPeer && peer.pairPeer.readyState === 1) {
     disposePeer(peer.pairPeer)
   }
 }
 
-// 心跳检测，避免掉线
+// 心跳检测,避免掉线
 function heartbeat(peer: any) {
   peer.send(JSON.stringify({ type: 'ping' }))
   if (peer.readyState === 1) {
@@ -72,7 +86,7 @@ function initSend(peer: any) {
   waitConnectPool.set(code, peer)
   peer.isInited = true
   initPool.delete(peer.id)
-  // 初始化发送端成功，返回连接码
+  // 初始化发送端成功,返回连接码
   peer.send(JSON.stringify({ type: 'code', code: code }))
   heartbeat(peer)
 }
@@ -80,7 +94,6 @@ function initSend(peer: any) {
 // 初始化接收端
 function initReceive(peer: any, code: string) {
   if (peer.pairPeer) {
-    // throw new Error('Already paired')
     return
   }
   const targetPeer = waitConnectPool.get(code)
@@ -122,14 +135,67 @@ export default defineWebSocketHandler({
         // 发送端初始化
         initSend(peer)
       } else if (data.type === 'receive') {
-        // 接收端初始化
-        if (/^\d{4}$/.test(data.code)) {
-          initReceive(peer, data.code)
+        // 接收端初始化(取件码与推送码共用一个 4 位数字池)
+        const code = String(data.code || '')
+        if (/^\d{4}$/.test(code)) {
+          initReceive(peer, code)
         } else {
-          // 如果code不是4位数字，则断开
+          // 如果 code 不是 4 位数字,则断开
           disposePeer(peer)
         }
+      } else if (data.type === 'register') {
+        // ShareYouSee 行政特征:注册在线 + 触发 pushList 回执
+        registerPeer(
+          peer,
+          String(data.walletId || ''),
+          String(data.publicKey || ''),
+          (data.deviceLabel || 'unknown') as DeviceLabel
+        )
+      } else if (data.type === 'pendingPush') {
+        // 发送方上报定向推送(code 与取件码同池,4 位数字)
+        const code = String(data.code || '')
+        if (!/^\d{4}$/.test(code)) return
+        const rawTargets = Array.isArray(data.targets) ? data.targets : []
+        const targets: TargetEndpoint[] = rawTargets
+          .map((t: any) => ({
+            walletId: String(t.walletId || ''),
+            deviceLabel: t.deviceLabel as DeviceLabel | undefined
+          }))
+          .filter((t: TargetEndpoint) => t.walletId)
+        const filesSnapshot: FilesSnapshot = data.filesSnapshot || {
+          type: 'transFile',
+          root: '',
+          totalCount: 0,
+          truncated: false,
+          items: []
+        }
+        const ttl = Math.min(Math.max(Number(data.ttlSec) || 600, 60), 3600)
+        createPush(
+          code,
+          String(data.senderWalletId || ''),
+          String(data.senderPublicKey || ''),
+          (data.senderDevice || 'unknown') as DeviceLabel,
+          targets,
+          filesSnapshot,
+          ttl * 1000
+        )
+      } else if (data.type === 'consumePush') {
+        // 接收端 P2P 完成后,告知服务端从 targets 中移除本端点
+        const code = String(data.code || '')
+        const walletId = String(data.walletId || walletIdOfPeer(peer) || '')
+        const deviceLabel = String(
+          data.deviceLabel || deviceLabelOfPeer(peer) || 'unknown'
+        ) as DeviceLabel
+        consumePush(code, walletId, deviceLabel)
+      } else if (data.type === 'requestPushList') {
+        // 客户端主动要求服务端再下发一次 pushList(刷新按钮)
+        const walletId = walletIdOfPeer(peer)
+        const deviceLabel = deviceLabelOfPeer(peer)
+        if (walletId && deviceLabel) {
+          pushListToPeer(peer, walletId, deviceLabel)
+        }
       } else if (peer.pairPeer) {
+        // 已配对的连接之间转发 SDP/ICE 等消息
         peer.pairPeer.send(msg.text())
       } else {
         disposePeer(peer)

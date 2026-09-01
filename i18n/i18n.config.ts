@@ -23,7 +23,16 @@ export default defineI18nConfig(() => ({
         times: 'times',
         totalProgress: 'Total progress',
         autoConfirmBySender: 'Auto confirm by sender',
-        dragHereToSendFile: 'Drag here to send the file'
+        dragHereToSendFile: 'Drag here to send the file',
+        recentCollaborators: 'Recent',
+        contactsTab: 'Contacts',
+        groups: 'Groups',
+        myEndpoints: 'My endpoints',
+        endpoints: 'Endpoints',
+        online: 'Online',
+        offline: 'Offline',
+        lastSeenAt: 'Last seen {time}',
+        tasks: 'Tasks'
       },
       btn: {
         submit: 'Submit',
@@ -43,7 +52,20 @@ export default defineI18nConfig(() => ({
         selectDir: 'Select folder',
         toHome: 'Back to home',
         terminate: 'Terminate',
-        buyMeCoffee: 'Buy me coffee'
+        buyMeCoffee: 'Buy me coffee',
+        confirm: 'Confirm',
+        close: 'Close',
+        back: 'Back',
+        ignore: 'Ignore',
+        accept: 'Accept',
+        pushTo: 'Push to',
+        addToGroup: 'Add to group',
+        newGroup: 'New group',
+        rename: 'Rename',
+        remove: 'Remove',
+        clearHistory: 'Clear history',
+        viewFiles: 'View files',
+        refresh: 'Refresh'
       },
       hint: {
         noModernFileAPIWarn:
@@ -72,7 +94,89 @@ export default defineI18nConfig(() => ({
         pleaseSelectUpdate: 'Please select the file to update',
         pleaseSelectDelete: 'Please select the file to delete',
         syncDiffFailed: 'Directory comparison failed, please try again',
-        quickDiffMode: 'Quick mode (compare size & date only)'
+        quickDiffMode: 'Quick mode (compare size & date only)',
+        pushReceivedTitle: 'Incoming push from {from}',
+        pushTargetsEmpty: 'No targets online',
+        noContacts: 'No contacts yet',
+        noGroups: 'No groups yet',
+        noEndpoints: 'No devices yet',
+        noTasks: 'No tasks yet',
+        clearHistoryConfirm: 'Are you sure you want to clear all task history?'
+      },
+      wallet: {
+        title: 'World ID',
+        setupTitle: 'World ID Setup',
+        intro:
+          'ShareYouSee uses a wallet identity derived from a BIP39 mnemonic. Please generate or import your wallet to enable contact, group and push features.',
+        generate: 'Generate new',
+        import: 'Import mnemonic',
+        importHint: 'Enter 12 or 24 BIP39 words. Spaces, commas or newlines all work.',
+        importPlaceholder: 'word1 word2 ...',
+        invalidMnemonic: 'Invalid mnemonic. Please check word count and checksum.',
+        mnemonicWarn:
+          'Save these 12 words in order. They are the ONLY way to recover your wallet. Do NOT screenshot them.',
+        iHaveSaved: 'I have saved my mnemonic',
+        confirmSaveFirst: 'Please confirm you have saved your mnemonic first',
+        setupDone: 'World ready',
+        idLabel: 'World ID',
+        walletId: 'World ID',
+        deviceLabel: 'Device',
+        publicKey: 'Public Key',
+        hasPrivateKey: 'Private key',
+        copyId: 'Copy ID',
+        copiedId: 'World ID copied',
+        switchIdentity: 'Switch identity',
+        reset: 'Reset wallet',
+        confirmReset:
+          'Reset wallet? This deletes your private key from this device. You will need your mnemonic to recover.',
+        resetDone: 'World reset. Use your mnemonic to restore on another device.',
+        notSetup: 'World not set up',
+        setupNow: 'Set up now',
+        insecureContextHint:
+          'WebCrypto is disabled because this page is not a Secure Context. Access via https:// or http://localhost to enable wallet features.'
+      },
+      contacts: {
+        addContact: 'Add contact',
+        removeContact: 'Remove contact',
+        renameContact: 'Rename contact',
+        devices: 'Endpoints',
+        publicKeyShort: 'Pubkey',
+        contactDeleted: 'Contact removed'
+      },
+      groups: {
+        create: 'Create group',
+        rename: 'Rename group',
+        addMember: 'Add member',
+        removeMember: 'Remove member',
+        members: 'Members',
+        confirmDelete: 'Delete this group?',
+        groupDeleted: 'Group deleted'
+      },
+      task: {
+        history: 'History',
+        sentFile: 'Sent file',
+        sentDir: 'Sent folder',
+        receivedFile: 'Received file',
+        receivedDir: 'Received folder',
+        statusDone: 'Completed',
+        statusError: 'Failed',
+        statusPending: 'In progress',
+        viewFiles: 'View files',
+        filesSnapshotTruncated: 'Snapshot truncated'
+      },
+      push: {
+        pushTo: 'Push to',
+        selectContacts: 'Select recipients',
+        pushCode: 'Push code',
+        pushHint: 'Push code is delivered to selected contacts/groups as soon as they are online.',
+        autoDownloadHint: 'A push was received. Accept to start downloading, or ignore to reject.',
+        pushFrom: 'From {from}',
+        pushToOnline: 'Online: {n}',
+        pushToOffline: 'Offline: {n}',
+        pushRejected: 'All targets rejected the push',
+        pushDelivered: 'A recipient accepted the push',
+        pushExpired: 'Push expired',
+        targetSelected: 'Target selected — next send will be pushed'
       }
     },
     zh: {
@@ -96,7 +200,16 @@ export default defineI18nConfig(() => ({
         times: '次',
         totalProgress: '总进度',
         autoConfirmBySender: '发送方自动确认',
-        dragHereToSendFile: '拖动到此处发送文件'
+        dragHereToSendFile: '拖动到此处发送文件',
+        recentCollaborators: '最近协作',
+        contactsTab: '联系人',
+        groups: '群组',
+        myEndpoints: '我的端点',
+        endpoints: '端点',
+        online: '在线',
+        offline: '离线',
+        lastSeenAt: '上次活跃 {time}',
+        tasks: '任务'
       },
       btn: {
         submit: '提交',
@@ -116,7 +229,20 @@ export default defineI18nConfig(() => ({
         selectDir: '选择目录',
         toHome: '回首页',
         terminate: '终止',
-        buyMeCoffee: '请我喝咖啡'
+        buyMeCoffee: '请我喝咖啡',
+        confirm: '确认',
+        close: '关闭',
+        back: '返回',
+        ignore: '忽略',
+        accept: '接收',
+        pushTo: '定向发送',
+        addToGroup: '加入群组',
+        newGroup: '新建群组',
+        rename: '重命名',
+        remove: '移除',
+        clearHistory: '清空记录',
+        viewFiles: '查看文件',
+        refresh: '刷新'
       },
       hint: {
         noModernFileAPIWarn:
@@ -144,7 +270,87 @@ export default defineI18nConfig(() => ({
         pleaseSelectUpdate: '请选择要更新的文件',
         pleaseSelectDelete: '请选择要删除的文件',
         syncDiffFailed: '目录对比失败，请重试',
-        quickDiffMode: '快速模式（仅比较大小和日期）'
+        quickDiffMode: '快速模式（仅比较大小和日期）',
+        pushReceivedTitle: '来自 {from} 的推送',
+        pushTargetsEmpty: '当前没有在线目标',
+        noContacts: '暂无联系人',
+        noGroups: '暂无群组',
+        noEndpoints: '暂无端点',
+        noTasks: '暂无任务',
+        clearHistoryConfirm: '确定清空所有任务记录？'
+      },
+      wallet: {
+        title: '世界 ID',
+        setupTitle: '世界 ID设置',
+        intro:
+          'ShareYouSee 使用 BIP39 助记词派生的世界 ID身份。请生成或导入世界 ID以启用联系人、群组与定向推送。',
+        generate: '生成新世界 ID',
+        import: '导入助记词',
+        importHint: '请输入 12 或 24 个 BIP39 单词,空格/逗号/换行均可。',
+        importPlaceholder: 'word1 word2 ...',
+        invalidMnemonic: '助记词无效,请检查单词数与校验位。',
+        mnemonicWarn: '请按顺序抄写以下 12 个单词。助记词是恢复世界 ID的唯一途径,切勿截图保存。',
+        iHaveSaved: '我已抄写',
+        confirmSaveFirst: '请先确认你已抄写助记词',
+        setupDone: '世界 ID已就绪',
+        idLabel: '世界 ID ID',
+        walletId: '世界 ID ID',
+        deviceLabel: '设备',
+        publicKey: '公钥',
+        hasPrivateKey: '私钥',
+        copyId: '复制 ID',
+        copiedId: '世界 ID ID 已复制',
+        switchIdentity: '切换 ID',
+        reset: '重置世界 ID',
+        confirmReset: '重置世界 ID?将清除本设备的私钥,需要使用助记词在其他设备恢复。',
+        resetDone: '世界 ID已重置。请使用助记词在其他设备恢复。',
+        notSetup: '尚未设置世界 ID',
+        setupNow: '立即设置',
+        insecureContextHint:
+          'WebCrypto 未启用,当前页面不是 Secure Context。请通过 https:// 或 http://localhost 访问以启用世界 ID功能。'
+      },
+      contacts: {
+        addContact: '添加联系人',
+        removeContact: '移除联系人',
+        renameContact: '重命名联系人',
+        devices: '端点',
+        publicKeyShort: '公钥',
+        contactDeleted: '已移除联系人'
+      },
+      groups: {
+        create: '创建群组',
+        rename: '重命名群组',
+        addMember: '添加成员',
+        removeMember: '移除成员',
+        members: '成员',
+        confirmDelete: '删除此群组?',
+        groupDeleted: '已删除群组'
+      },
+      task: {
+        history: '历史',
+        sentFile: '发送文件',
+        sentDir: '发送目录',
+        receivedFile: '接收文件',
+        receivedDir: '接收目录',
+        statusDone: '已完成',
+        statusError: '失败',
+        statusPending: '进行中',
+        viewFiles: '查看文件',
+        filesSnapshotTruncated: '文件清单已截断'
+      },
+      push: {
+        pushTo: '定向发送',
+        selectContacts: '选择目标',
+        pushCode: '推送码',
+        pushHint: '推送码会在目标在线时自动送达。',
+        autoDownloadHint: '收到一个推送,接收开始下载,或忽略以拒接。',
+        pushFrom: '来自 {from}',
+        pushToOnline: '在线 {n}',
+        pushToOffline: '离线 {n}',
+        pushRejected: '所有目标均已拒接',
+        pushDelivered: '目标已开始接收',
+        pushExpired: '推送已过期',
+        targetSelected: '已选择定向目标,下次发送将自动定向'
       }
     }
   }
