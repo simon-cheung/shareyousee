@@ -1,12 +1,20 @@
 name: ShareYouSee
 services:
-  app:
+  # 后端 Fastify + Bun
+  # 前端静态资源推荐由 Caddy/Nginx 直接托管,不走容器
+  backend:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: backend/Dockerfile
     ports:
-      - '3002:3002'
+      - "3002:3002"
     environment:
       - NODE_ENV=production
       - PORT=3002
-    command: node server/index.mjs
+      - HOST=0.0.0.0
+      - LOG_LEVEL=info
+    # 后端启动时把 frontend/dist 挂载到 /app/public-dist,
+    # Fastify 的 fastifyStatic 插件会自动 serve 这些静态资源
+    volumes:
+      - ./frontend/dist:/app/public-dist:ro
+    restart: unless-stopped

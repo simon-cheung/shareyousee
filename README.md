@@ -1,14 +1,14 @@
 <h1 align="center">ShareYouSee 文件快传 🚀</h1>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.7.3-blue.svg?style=flat-square" />
+  <img alt="Version" src="https://img.shields.io/badge/version-1.0.0-blue.svg?style=flat-square" />
   <a href="#" target="_blank">
     <img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square" />
   </a>
 </p>
 
 <p align="center">
-  <img src="./public/ogImg.webp" />
+  <img src="./frontend/public/ogImg.webp" />
 </p>
 
 ## 📖 项目介绍
@@ -25,151 +25,160 @@ ShareYouSee 是一个基于 WebRTC 技术的点对点文件传输工具，支持
 - 🎯 简单易用的界面设计
 - 🌍 支持中英文界面
 - 📲 支持PWA轻量安装
+- 🔐 基于 BIP39 助记词的身份系统(联系人 / 群组 / 定向推送)
 
 ## 🛠️ 技术栈
 
-- WebRTC
-- Vue.js
-- Nuxt 4
-- Pinia
+- WebRTC + Modern File System API
+- Vue 3 (Composition API) + Vite
+- Pinia (状态管理)
 - TypeScript
-- Modern File System API
+- PrimeVue 4 (unstyled + Aura PassThrough)
+- Tailwind CSS
+- Fastify + Bun(后端 WebSocket 信令 + REST)
+- @fastify/websocket(WebSocket 信令通道)
+- vue-i18n(中英双语)
+- vite-plugin-pwa(PWA + workbox)
 
-## 🗂️ 目录结构
+## 🗂️ 目录结构(前后端分离)
 
-项目已按 Nuxt 4 默认约定迁移为 `app/` 目录结构：
-
-- `app/`：前端应用层源码，包括页面、组件、stores、composables、utils、全局样式与 `app.vue`
-- `server/`：Nitro 服务端接口与 WebSocket 信令逻辑
-- `public/`：静态资源与 PWA 相关文件
-- `presets/`：PrimeVue 主题预设
-
-这样可以更清晰地分离前端应用层与服务端上下文，也更符合 Nuxt 4 的默认扫描方式。
+```
+shareyousee/
+├── frontend/                 # Vue 3 + Vite SPA 前端
+│   ├── src/
+│   │   ├── views/            # 路由页面
+│   │   ├── components/       # UI 组件(零修改平移)
+│   │   ├── stores/           # Pinia 状态(零修改平移)
+│   │   ├── composables/      # 组合式逻辑(含 usePresenceWs 全局 ws)
+│   │   ├── utils/            # 工具(PeerDataChannel / wallet / files)
+│   │   ├── types/            # 类型定义 + global.d.ts
+│   │   ├── locales/          # vue-i18n 中英双语文案
+│   │   ├── presets/aura/     # PrimeVue Aura PT 主题
+│   │   ├── styles/main.css   # 全局 CSS(Tailwind + PrimeVue unstyled 变量)
+│   │   ├── router/index.ts   # Vue Router 4 显式路由表
+│   │   ├── App.vue           # 根组件
+│   │   ├── main.ts           # 应用入口
+│   │   ├── components/
+│   │   │   ├── ClientOnly.vue # ClientOnly 组件(SPA 兼容)
+│   │   │   └── Icon.vue       # Icon 组件(collection:name 格式)
+│   │   └── utils/
+│   │       ├── colorMode.ts  # 暗色模式
+│   │       ├── localePath.ts # useLocalePath
+│   │       ├── seoMeta.ts    # useSeoMeta(no-op)
+│   │       └── useState.ts   # useState(module Map shim)
+│   ├── public/               # 静态资源 + PWA sw.js + manifest
+│   ├── vite.config.ts        # Vite + PWA + unplugin-icons 配置
+│   └── package.json
+├── backend/                  # Fastify + Bun 后端
+│   ├── src/
+│   │   ├── server.ts         # Fastify 入口
+│   │   ├── ws/
+│   │   │   ├── connect.ts    # WebSocket 信令(取件码配对 + Push 协议)
+│   │   │   └── presence.ts   # 在线状态 + 定向推送注册表
+│   │   └── utils/
+│   │       └── TransCount.ts # 全局传输计数(本地文件持久化)
+│   └── Dockerfile
+├── Caddyfile                 # 反代配置(前端静态 + /api/* 反代到后端)
+├── docker-compose.yaml
+├── scripts/
+│   └── package-deploy.sh     # 打包前后端分离产物
+├── AGENTS.md                 # Agent 维护约束
+└── README.md
+```
 
 ## 📦 安装与构建
 
 ```bash
-# 安装依赖
-yarn install
+# 后端
+cd backend && bun install && bun run build
 
-# 构建项目
-yarn build
+# 前端
+cd frontend && bun install && bun run build
 ```
 
-## 🚀 使用方法
+## 🚀 本地开发
 
 ```bash
-# 启动服务
-node .output/server/index.mjs
+# 启动后端(端口 3002)
+cd backend && bun run dev
+
+# 启动前端(另一终端, 端口 5173)
+cd frontend && bun run dev
 ```
 
-### 手动部署（非 Docker）
+Vite 已配置 `/api` 反代到 `http://127.0.0.1:3002`,前端访问 `http://localhost:5173` 即可联调完整流程。
 
-通过 `scripts/package-deploy.sh` 脚本打包。脚本会在 `dist/` 下生成 `shareyousee-output.tar.gz`，**保留 `.output/server/node_modules/` 内的符号链接**（Nitro 用软链隔离同名多版本包）。
+## 🌐 部署
+
+### 反向代理 + 静态托管(推荐)
 
 ```bash
-# 本地打包
-yarn build
+# 1. 构建产物
+cd frontend && bun run build       # → frontend/dist/
+cd backend && bun run build        # → backend/dist/
+
+# 2. 上传到服务器
+scp -r frontend/dist user@host:/var/www/shareyousee/frontend-dist
+scp -r backend/dist user@host:/var/www/shareyousee/backend/dist
+scp -r backend/node_modules user@host:/var/www/shareyousee/backend/
+
+# 3. 启动后端
+ssh user@host 'cd /var/www/shareyousee/backend && PORT=3002 bun run dist/server.js'
+
+# 4. 配置 Caddy(见仓库 Caddyfile)
+```
+
+### 一键打包
+
+```bash
 ./scripts/package-deploy.sh
+# 生成 dist/shareyousee-output.tar.gz,包含 frontend-dist + backend/dist + node_modules
+```
 
-# 上传到服务器
-scp dist/shareyousee-output.tar.gz user@host:~/
+### Docker(后端容器 + 前端静态)
 
-# 在服务器上解压到 .output 目录（注意：解压目标必须是名为 .output 的目录）
-ssh user@host '
-  mkdir -p ~/armingg/html-root/share/.output &&
-  tar -xzf ~/shareyousee-output.tar.gz -C ~/armingg/html-root/share/.output
-'
-
-# 启动
-ssh user@host 'cd ~/armingg/html-root/share/.output/server && PORT=3002 node index.mjs'
+```bash
+docker compose up -d
+# 后端监听 3002,前端 dist 挂载到 /app/public-dist 由 Fastify serve
+# 生产场景建议:仅部署后端容器,前端静态资源由 Caddy 直托管
 ```
 
 > [!IMPORTANT]
 >
-> **解压目录必须是 `.output`**（即 `server/index.mjs` 与 `nitro.json` 同级的父目录）。
+> 目录传输和同步需要 `HTTPS` 以及浏览器支持,一般新版本的桌面浏览器都支持
 >
-> Nitro 在 SSR 渲染时依赖 `globalThis._importMeta_.url` 推导资源路径，路径不在 `.output/` 结构下会触发 SSR 错误：
+> 本项目自身的 HTTPS 配置方式(测试环境)请参考:
 >
-> ```
-> Cannot read properties of null (reading 'ce')
-> ```
+> - [Nuxt 部署教程(英文)](https://nuxt.com/docs/4.x/getting-started/deployment#entry-point)
 >
-> 无论部署到 `/srv/app/.output` 还是 `~/myapp/.output`，只要顶层目录名是 `.output` 即可正常启动。
-
-> [!WARNING]
->
-> 传输与解压时**必须保留符号链接**。下面任一操作会物化软链、破坏 SSR：
->
-> - `rsync -aL ...` / `cp -RL ...` / `tar -cZh ...` / `scp` 默认行为
-> - 解压到不支持软链的文件系统（如 Windows NTFS、某些 FTP/WebDAV）
->
-> 安全的传输方式：`scp`（不带 `-r` 的隐式物化）、`rsync -avz --exclude='.DS_Store'`、或先在本地 `tar -czf` 再上传压缩包。
-
-### `node_modules` 补丁说明
-
-`yarn install` 后会自动运行 `scripts/patch-hookable.mjs`(见 `package.json` 的 `postinstall`)。补丁内容：
-
-- **目标库**：[`unjs/hookable`](https://github.com/unjs/hookable) v6.1.1（`yarn.lock` 当前锁定的版本）
-- **修复内容**：`serialTaskCaller` / `parallelTaskCaller` 在 `hooks.length === 0` 时返回 `undefined`，导致 Nitro 中 `await callHook(...).catch()` 抛 `Cannot read properties of undefined (reading 'catch')`。补丁让空钩子时返回 `Promise.resolve()`。
-- **上游状态**：[hookable 仓库](https://github.com/unjs/hookable/issues)（截至 main 分支 2026-08-31 仍未合并修复）。一旦官方版本修复，可移除本补丁及对应 `postinstall` 脚本。
-- **必须运行 `yarn install`**：补丁依赖 `postinstall` 钩子写入 `node_modules/hookable/dist/index.mjs`。把 `node_modules` 直接拷到服务器、或 Docker 镜像里只 `COPY node_modules` 不重跑 install，会让 SSR 启动时崩溃。
-- **服务器上不需要再装依赖**：Nitro 把依赖全部 inline 在 `.output/server/node_modules/` 里（`nitro.externals.inline: [/.*/]`），仅 `.output/server/node_modules/hookable/dist/index.mjs` 仍需保持 patch 状态。如果重新 build，patch 会重新应用一次。
-
-> [!IMPORTANT]
-> 目录传输和同步需要 `HTTPS` 以及浏览器支持，一般新版本的桌面浏览器都支持
->
-> 本项目自身的 HTTPS 配置方式（测试环境）请参考：
->
-> - [置顶 Issue](https://github.com/ShouChenICU/FastSend/issues/9#issuecomment-2562353775)
-> - [Nuxt 部署教程（英文）](https://nuxt.com/docs/4.x/getting-started/deployment#entry-point)
->
-> ShareYouSee 不建议直接以 HTTPS 形式进行生产环境部署，而应当位于反向代理服务器之后，请参考：
+> ShareYouSee 不建议直接以 HTTPS 形式进行生产环境部署,而应当位于反向代理服务器之后,请参考:
 >
 > - [Nginx](https://nginx.org/en/docs/http/configuring_https_servers.html)
 > - [Apache httpd](https://httpd.apache.org/docs/current/ssl/)
 > - [Caddy](https://caddyserver.com/docs/quick-starts/https)
 > - [Windows IIS](https://learn.microsoft.com/zh-cn/iis/manage/configuring-security/how-to-set-up-ssl-on-iis)
 
-## 🐳 Docker 和 Docker Compose
-
-### 使用 Docker Hub 发行版
-
-```bash
-docker run -d --name fastsend -p 3000:3000 shouchenicu/fastsend:latest
-```
+## 🐳 Docker 镜像
 
 > [!CAUTION]
 >
-> `shouchenicu/fastsend` 是此项目在 Docker Hub 上的 **唯一** 官方镜像！
+> `shouchenicu/fastsend` 是此项目在 Docker Hub 上的 **唯一** 官方镜像!
 >
-> 当前已发现 12 个第三方镜像，其中5个[^1]的下载使用量高于官方镜像。请注意甄别，风险自负！
+> 当前已发现 12 个第三方镜像,其中5个[^1]的下载使用量高于官方镜像。请注意甄别,风险自负!
 
 [^1]: 比如 `niliaerith/fastsend`
 
-### Docker 构建
-
 ```bash
-docker build -t fastsend .
-docker run -d --name fastsend -p 3000:3000 fastsend
+# 后端镜像(已发布)
+docker run -d --name fastsend -p 3002:3002 shouchenicu/fastsend:latest
 ```
-
-### Docker Compose
-
-将项目拉取到本地，然后运行：
-
-```bash
-docker-compose up -d
-```
-
-访问 `http://localhost:3000` 即可使用。
 
 ## 💡 使用提示
 
 1. 确保浏览器启用了 WebRTC 功能
-2. 如需传输文件夹或同步目录，请确保浏览器支持现代文件系统 API 并已启用 HTTPS 传输
+2. 如需传输文件夹或同步目录,请确保浏览器支持现代文件系统 API 并已启用 HTTPS 传输
 3. 在同一局域网内传输速度最快
-4. 建议在网络状态良好时使用，部分网络环境可能会阻止 P2P / WebRTC 正确建立连接，从而导致传输失败
+4. 建议在网络状态良好时使用,部分网络环境可能会阻止 P2P / WebRTC 正确建立连接,从而导致传输失败
 
 ## 👨‍💻 作者
 
@@ -182,12 +191,10 @@ docker-compose up -d
 
 欢迎提交 Issue 和 Pull Request！
 
-[![Contributors](https://contrib.nn.ci/api?no_bot=true&repo=shouchenicu/fastsend)](https://github.com/shouchenicu/fastsend/graphs/contributors)
-
 ## 📝 开源协议
 
 本项目基于 MIT 协议开源。
 
 ## ⭐ 支持项目
 
-如果这个项目对你有帮助，欢迎给一个 star 支持一下！
+如果这个项目对你有帮助,欢迎给一个 star 支持一下!

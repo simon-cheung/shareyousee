@@ -1,10 +1,14 @@
-# Nuxt dev/build outputs
+# Build outputs
 .output
 .data
 .nuxt
 .nitro
 .cache
 dist
+
+# Bun caches
+.bun
+bun.lockb
 
 # Node dependencies
 node_modules
@@ -22,3 +26,10 @@ logs
 .env
 .env.*
 !.env.example
+
+# Vite PWA generated
+dev-dist
+*.local
+
+# Dev certs
+.dev-certs

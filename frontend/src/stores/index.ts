@@ -1,0 +1,10 @@
+// Pinia store 入口文件
+export { useAppStore } from './app'
+export { useContactsStore } from './contacts'
+export { useHomeStore } from './home'
+export { useRecipientTransferStore } from './recipientTransfer'
+export { useRemoteTaskStore } from './remoteTask'
+export { useSenderTransferStore } from './senderTransfer'
+export { useTaskStore } from './task'
+export { useTransferConfigStore } from './transferConfig'
+export { useUserStore } from './user'

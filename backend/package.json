@@ -1,0 +1,30 @@
+{
+  "name": "shareyousee-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ShareYouSee backend - Fastify + WebSocket signaling + REST",
+  "main": "src/server.ts",
+  "scripts": {
+    "dev": "bun run --hot src/server.ts",
+    "build": "bun build src/server.ts --target=bun --outdir=dist --minify",
+    "start": "bun run dist/server.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fastify/static": "^7.0.4",
+    "@fastify/websocket": "^10.0.1",
+    "@isaacs/ttlcache": "^2.1.4",
+    "fastify": "^4.28.1"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.1.6",
+    "@types/ws": "^8.18.1",
+    "prettier": "^3.9.6",
+    "typescript": "^5.5.4"
+  },
+  "engines": {
+    "bun": ">=1.1.0"
+  },
+  "packageManager": "bun@1.1.0"
+}
